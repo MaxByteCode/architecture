@@ -23,7 +23,9 @@ Before Running main.tf file. Here are steps to setup.
     Terraform must authenticate to Azure to create infrastructure.
 
     In your terminal, use the Azure CLI tool to setup your account permissions locally.
-
+    ```bash
+    az login  
+    ```
     ```bat
     az login  
     ```
