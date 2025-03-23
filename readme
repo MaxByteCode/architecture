@@ -24,7 +24,7 @@ Before Running main.tf file. Here are steps to setup.
 
     In your terminal, use the Azure CLI tool to setup your account permissions locally.
 
-    ```bash
+    ```bat
     az login  
     ```
 
@@ -32,7 +32,7 @@ Before Running main.tf file. Here are steps to setup.
 
     You have logged in. Now let us find all the subscriptions to which you have access...
 
-    ```bash
+    ```bat
     [
       {
         "cloudName": "<CLOUD-NAME>",
@@ -55,7 +55,7 @@ Before Running main.tf file. Here are steps to setup.
 
     Once you have chosen the account subscription ID, set the account with the Azure CLI.
 
-    ```bash
+    ```bat
     az account set --subscription "<SUBSCRIPTION-ID>"
     ```
 
@@ -65,7 +65,7 @@ Before Running main.tf file. Here are steps to setup.
 
     Create a Service Principal:
 
-    ```bash
+    ```bat
     az ad sp create-for-rbac --role="Contributor" --scopes="/subscriptions/<SUBSCRIPTION_ID>"
 
     Creating 'Contributor' role assignment under scope '/subscriptions/<SUBSCRIPTION_ID>'
@@ -86,7 +86,7 @@ Before Running main.tf file. Here are steps to setup.
 
     * For MacOS/Linux:
 
-      ```bash
+      ```bat
       export ARM_CLIENT_ID="<SERVICE_PRINCIPAL_APPID>"
       export ARM_CLIENT_SECRET="<SERVICE_PRINCIPAL_PASSWORD>"
       export ARM_SUBSCRIPTION_ID="<SUBSCRIPTION_ID>"
@@ -95,7 +95,7 @@ Before Running main.tf file. Here are steps to setup.
 
     * For Windows (PowerShell):
 
-      ```bash
+      ```bat
       $env:ARM_CLIENT_ID="<SERVICE_PRINCIPAL_APPID>"
       $env:ARM_CLIENT_SECRET="<SERVICE_PRINCIPAL_PASSWORD>"
       $env:ARM_SUBSCRIPTION_ID="<SUBSCRIPTION_ID>"
@@ -110,7 +110,7 @@ Before Running main.tf file. Here are steps to setup.
 
   Run command:
 
-  ```bash
+  ```bat
   terraform init
   ```
 
@@ -120,7 +120,7 @@ Before Running main.tf file. Here are steps to setup.
 
   Run command:
 
-  ```bash
+  ```bat
   terraform plan
   ```
 
@@ -130,7 +130,7 @@ Before Running main.tf file. Here are steps to setup.
 
   Run command:
 
-  ```bash
+  ```bat
   terraform apply
   ```
 
@@ -144,6 +144,6 @@ Before Running main.tf file. Here are steps to setup.
   
   Run command:
 
-  ```bash
+  ```bat
   terraform destroy
   ```
