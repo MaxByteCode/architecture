@@ -149,3 +149,19 @@ Before Running main.tf file. Here are steps to setup.
   ```
   terraform destroy
   ```
+
+# Pipeline 
+
+Here’s a breakdown of the pipeline:
+
+Linting: Run lint checks (using ESLint or a similar tool).
+
+SonarQube: Integrate with SonarQube for static code analysis.
+
+Build: Full build stage to ensure the application works as expected.
+
+Deploy to Dev: Deploy to the development environment.
+
+Deploy to UAT: Deploy to the User Acceptance Testing environment.
+
+Deploy to Production: Deploy to production after the UAT approval.
