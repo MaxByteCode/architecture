@@ -1,0 +1,121 @@
+trigger:
+- develop
+
+variables:
+  nodeVersion: '20.9.0'  # Define the Node.js version you need
+  buildConfiguration: 'Release'
+  appName: 'my-app-service-dev'  # Replace with your app name
+  devAppService: 'my-app-service-dev'  # Replace with your Dev App Service name
+  uatAppService: 'my-app-service-uat'  # Replace with your UAT App Service name
+  prodAppService: 'my-app-service-prod'  # Replace with your Production App Service name
+  sonarHostUrl: 'https://sonarcloud.io'  # Change if using a different SonarQube instance
+  sonarProjectKey: 'my-sonar-project-key'  # Replace with your SonarQube project key
+
+stages:
+- stage: Lint
+  displayName: 'Lint Code'
+  jobs:
+  - job: LintJob
+    displayName: 'Lint Code'
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+    - task: UseNode@2
+      inputs:
+        versionSpec: $(nodeVersion)
+    - checkout: self
+    - run: |
+        npm install
+        npm run lint  # Assuming you have lint command in your package.json
+
+- stage: SonarQubeAnalysis
+  displayName: 'SonarQube Analysis'
+  dependsOn: Lint
+  jobs:
+  - job: SonarQubeJob
+    displayName: 'Run SonarQube Analysis'
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+    - task: UseNode@2
+      inputs:
+        versionSpec: $(nodeVersion)
+    - checkout: self
+    - task: SonarQubePrepare@5
+      inputs:
+        SonarQube: 'SonarCloud'  # Name of your SonarQube service connection
+        scannerMode: 'CLI'
+        configMode: 'manual'
+        cliProjectKey: $(sonarProjectKey)
+        cliProjectName: $(Build.DefinitionName)
+    - run: |
+        npm install
+        npm run build  # If your build generates any artifacts that need to be analyzed
+    - task: SonarQubeAnalyze@5
+    - task: SonarQubePublish@5
+      inputs:
+        pollingTimeoutSec: '300'
+
+- stage: Build
+  displayName: 'Build Application'
+  dependsOn: SonarQubeAnalysis
+  jobs:
+  - job: BuildJob
+    displayName: 'Build Application'
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+    - task: UseNode@2
+      inputs:
+        versionSpec: $(nodeVersion)
+    - checkout: self
+    - run: |
+        npm install
+        npm run build  # Replace with your actual build command
+
+- stage: DeployDev
+  displayName: 'Deploy to Dev'
+  dependsOn: Build
+  jobs:
+  - job: DeployDevJob
+    displayName: 'Deploy to Dev'
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+    - task: AzureWebApp@1
+      inputs:
+        azureSubscription: '<Azure Service Connection>'
+        appName: $(devAppService)
+        package: $(System.DefaultWorkingDirectory)/**/*.zip  # Or use your build artifact
+
+- stage: DeployUAT
+  displayName: 'Deploy to UAT'
+  dependsOn: DeployDev
+  condition: succeeded()
+  jobs:
+  - job: DeployUATJob
+    displayName: 'Deploy to UAT'
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+    - task: AzureWebApp@1
+      inputs:
+        azureSubscription: '<Azure Service Connection>'
+        appName: $(uatAppService)
+        package: $(System.DefaultWorkingDirectory)/**/*.zip
+
+- stage: DeployProd
+  displayName: 'Deploy to Production'
+  dependsOn: DeployUAT
+  condition: succeeded()
+  jobs:
+  - job: DeployProdJob
+    displayName: 'Deploy to Production'
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+    - task: AzureWebApp@1
+      inputs:
+        azureSubscription: '<Azure Service Connection>'
+        appName: $(prodAppService)
+        package: $(System.DefaultWorkingDirectory)/**/*.zip
