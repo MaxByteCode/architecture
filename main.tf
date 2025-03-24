@@ -165,7 +165,7 @@ resource "azurerm_app_service_plan" "us_frontend_service_plan" {
 
 resource "azurerm_function_app" "us_frontend_function_app"{ 
    provider                 =azurerm.us 
-   name                      ="myFrontendFunctionAppUS"
+   name                      ="myFrontendFunctionApp"
    location                 =azurerm_resource_group.us_rg.location 
    resource_group_name      =azurerm_resource_group.us_rg.name 
    app_service_plan_id      =azurerm_app_service_plan.us_frontend_service_plan.id 
@@ -191,17 +191,29 @@ resource "azurerm_app_service_plan" "us_backend_service_plan"{
    }  
 }  
 
-resource "azurm.function_app""us_backend_function_app"{  
+resource "azurerm_app_service""us_backend_function_app"{  
     provider                  ="azurm.us""  
-    name                      ="myBackendFunctionAppUS""  
+    name                      ="myBackendAppUS""  
     location                  ="azure.resourcegroup.us_rg.location""  
     resourcegroupname         ="azure.resourcegroup.us_rg.name""  
     appserviceplanid          ="azure.appserviceplan.us_backend_service_plan.id""  
 
-    appsettings={  
-       functions_worker_runtime="node""  
-       # Add other necessary settings here."  
-    }  
+    app_settings = {
+      "WEBSITES_ENABLE_APP_SERVICE_STORAGE" = "false"
+      "NODE_ENV"                           = "production"
+    }
+
+    site_config {
+      linux_fx_version = "NODE|20-lts"  # Example: Use Node.js version 16.x on Linux App Service
+    }
+
+  # If you want to deploy from a repository (e.g., GitHub)
+  # source_control {
+  #   repo_url          = "https://github.com/your/repository"
+  #   branch            = "main"
+  #   git_token         = "your-github-token"
+  #   use_web_deployment = true
+  # }  
 }  
 
 # Repeat similar steps for Frontend and Backend Apps in EU
@@ -227,7 +239,7 @@ resource “azure.function_app” “eu_frontend_function_app” {
     appserviceplanid          ="azure.appserviceplan.eu_frontend_service_plan.id""    
 
     appsettings={    
-       functions_worker_runtime="node""    
+       functions_worker_runtime="NODE|20-lts"    
        # Add other necessary settings here."    
     }    
 }    
@@ -255,7 +267,7 @@ resource “azure.function_app” “eu_backend_function_app” {
      appserviceplanid           ="azure.appserviceplan.eu_backend_service_plan.id"
 
      appsettings={   
-        functions_worker_runtime="node"""   
+        functions_worker_runtime="NODE|20-lts"   
         # Add other necessary settings here."    
      }    
 }    
@@ -291,7 +303,7 @@ resource "azurerm_function_app" "us_function_app" {
   storage_account_access_key   = azurerm_storage_account.us_storage.primary_access_key
 
   app_settings = {
-    FUNCTIONS_WORKER_RUNTIME   = "node"
+    FUNCTIONS_WORKER_RUNTIME   = "NODE|20-lts"
     AzureWebJobsStorage        = azurerm_storage_account.us_storage.primary_connection_string 
   }
 }
@@ -307,7 +319,7 @@ resource "azurerm_function_app" "eu_function_app" {
   storage_account_access_key   = azurerm_storage_account.eu_storage.primary_access_key
 
   app_settings = {
-    FUNCTIONS_WORKER_RUNTIME   = "node"
+    FUNCTIONS_WORKER_RUNTIME   = "NODE|20-lts"
     AzureWebJobsStorage        = azurerm_storage_account.eu_storage.primary_connection_string 
   }
 }
@@ -491,7 +503,7 @@ resource "azurerm_function_app" "us_function_app" {
    storage_account_access_key  =azurerm_storage_account.us_storage.primary_access_key 
 
    app_settings={ 
-      FUNCTIONS_WORKER_RUNTIME="node" 
+      FUNCTIONS_WORKER_RUNTIME="NODE|20-lts" 
       AzureWebJobsStorage=azurerm_storage_account.us_storage.primary_connection_string 
       EVENTHUB_CONNECTION_STRING=azurerm_eventhub.us_eventhub.default_primary_connection_string 
    } 
@@ -508,7 +520,7 @@ resource "azurerm_function_app" "eu_function_app" {
    storage_account_access_key  =azurerm_storage_account.eu_storage.primary_access_key 
 
    app_settings={ 
-      FUNCTIONS_WORKER_RUNTIME="node" 
+      FUNCTIONS_WORKER_RUNTIME="NODE|20-lts" 
       AzureWebJobsStorage=azurerm_storage_account.eu_storage.primary_connection_string 
       EVENTHUB_CONNECTION_STRING=azurerm_eventhub.eu_eventhub.default_primary_connection_string  
    }  
