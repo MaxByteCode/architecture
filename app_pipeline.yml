@@ -1,121 +1,154 @@
 trigger:
-- develop
+- main
 
 variables:
-  nodeVersion: '20.9.0'  # Define the Node.js version you need
-  buildConfiguration: 'Release'
-  appName: 'my-app-service-dev'  # Replace with your app name
-  devAppService: 'my-app-service-dev'  # Replace with your Dev App Service name
-  uatAppService: 'my-app-service-uat'  # Replace with your UAT App Service name
-  prodAppService: 'my-app-service-prod'  # Replace with your Production App Service name
-  sonarHostUrl: 'https://sonarcloud.io'  # Change if using a different SonarQube instance
-  sonarProjectKey: 'my-sonar-project-key'  # Replace with your SonarQube project key
+  azureSubscription: 'Your Azure Service Connection Name'
+  keyVaultName: 'YourKeyVaultName'
+  sonarQubeProjectKey: 'YourSonarQubeProjectKey'
+  sonarQubeProjectName: 'YourSonarQubeProjectName'
+  sonarQubeHost: 'http://your-sonarqube-server'
+  appServiceDev: 'your-app-service-name-dev'
+  appServiceUat: 'your-app-service-name-uat'
+  appServiceProd: 'your-app-service-name-prod'
 
 stages:
-- stage: Lint
-  displayName: 'Lint Code'
+- stage: InstallDependencies
+  displayName: 'Install Dependencies'
   jobs:
-  - job: LintJob
-    displayName: 'Lint Code'
-    pool:
-      vmImage: 'ubuntu-latest'
-    steps:
-    - task: UseNode@2
-      inputs:
-        versionSpec: $(nodeVersion)
-    - checkout: self
-    - run: |
-        npm install
-        npm run lint  # Assuming you have lint command in your package.json
+    - job: Install
+      displayName: 'Install Dependencies'
+      pool:
+        vmImage: 'ubuntu-latest'
+      steps:
+        - task: NodeTool@0
+          inputs:
+            versionSpec: '20.9'
+            addToPath: true
+        - script: |
+            npm install
+          displayName: 'Install NPM dependencies'
+
+- stage: Lint
+  displayName: 'Run Linting'
+  jobs:
+    - job: Lint
+      displayName: 'Run Lint'
+      pool:
+        vmImage: 'ubuntu-latest'
+      steps:
+        - script: |
+            npm run lint
+          displayName: 'Run Lint'
 
 - stage: SonarQubeAnalysis
   displayName: 'SonarQube Analysis'
-  dependsOn: Lint
   jobs:
-  - job: SonarQubeJob
-    displayName: 'Run SonarQube Analysis'
-    pool:
-      vmImage: 'ubuntu-latest'
-    steps:
-    - task: UseNode@2
-      inputs:
-        versionSpec: $(nodeVersion)
-    - checkout: self
-    - task: SonarQubePrepare@5
-      inputs:
-        SonarQube: 'SonarCloud'  # Name of your SonarQube service connection
-        scannerMode: 'CLI'
-        configMode: 'manual'
-        cliProjectKey: $(sonarProjectKey)
-        cliProjectName: $(Build.DefinitionName)
-    - run: |
-        npm install
-        npm run build  # If your build generates any artifacts that need to be analyzed
-    - task: SonarQubeAnalyze@5
-    - task: SonarQubePublish@5
-      inputs:
-        pollingTimeoutSec: '300'
+    - job: SonarQubeAnalysis
+      displayName: 'Run SonarQube Analysis'
+      pool:
+        vmImage: 'ubuntu-latest'
+      steps:
+        - task: SonarQubePrepare@5
+          inputs:
+            SonarQube: $(sonarQubeHost)
+            scannerMode: 'CLI'
+            configMode: 'manual'
+            cliProjectKey: $(sonarQubeProjectKey)
+            cliProjectName: $(sonarQubeProjectName)
+        - script: |
+            npm run build
+          displayName: 'Build Application for SonarQube Analysis'
+        - task: SonarQubeAnalyze@5
+        - task: SonarQubePublish@5
+          inputs:
+            pollingTimeoutSec: '300'
 
 - stage: Build
   displayName: 'Build Application'
-  dependsOn: SonarQubeAnalysis
   jobs:
-  - job: BuildJob
-    displayName: 'Build Application'
-    pool:
-      vmImage: 'ubuntu-latest'
-    steps:
-    - task: UseNode@2
-      inputs:
-        versionSpec: $(nodeVersion)
-    - checkout: self
-    - run: |
-        npm install
-        npm run build  # Replace with your actual build command
+    - job: Build
+      displayName: 'Build Node.js Application'
+      pool:
+        vmImage: 'ubuntu-latest'
+      steps:
+        - script: |
+            npm install
+            npm run build
+          displayName: 'Install Dependencies and Build Application'
+        - task: CopyFiles@2
+          inputs:
+            SourceFolder: '$(Build.SourcesDirectory)'
+            Contents: '**/*'
+            TargetFolder: '$(Build.ArtifactStagingDirectory)'
+          displayName: 'Copy files to ArtifactStagingDirectory'
 
-- stage: DeployDev
+- stage: DeployToDev
   displayName: 'Deploy to Dev'
-  dependsOn: Build
   jobs:
-  - job: DeployDevJob
-    displayName: 'Deploy to Dev'
-    pool:
-      vmImage: 'ubuntu-latest'
-    steps:
-    - task: AzureWebApp@1
-      inputs:
-        azureSubscription: '<Azure Service Connection>'
-        appName: $(devAppService)
-        package: $(System.DefaultWorkingDirectory)/**/*.zip  # Or use your build artifact
+    - job: DeployDev
+      displayName: 'Deploy to Dev Environment'
+      pool:
+        vmImage: 'ubuntu-latest'
+      steps:
+        - task: AzureKeyVault@2
+          inputs:
+            connectedServiceName: $(azureSubscription)
+            keyVaultName: $(keyVaultName)
+            secretsFilter: '*'
+          displayName: 'Fetch secrets from KeyVault'
+        - task: AzureWebApp@1
+          inputs:
+            appName: $(appServiceDev)
+            package: '$(Build.ArtifactStagingDirectory)/**/*.zip'
+            azureSubscription: $(azureSubscription)
+            deploymentMethod: 'auto'
+          displayName: 'Deploy to Azure App Service (Dev)'
 
-- stage: DeployUAT
+- stage: DeployToUat
   displayName: 'Deploy to UAT'
-  dependsOn: DeployDev
+  dependsOn: DeployToDev
   condition: succeeded()
   jobs:
-  - job: DeployUATJob
-    displayName: 'Deploy to UAT'
-    pool:
-      vmImage: 'ubuntu-latest'
-    steps:
-    - task: AzureWebApp@1
-      inputs:
-        azureSubscription: '<Azure Service Connection>'
-        appName: $(uatAppService)
-        package: $(System.DefaultWorkingDirectory)/**/*.zip
+    - job: DeployUat
+      displayName: 'Deploy to UAT Environment'
+      pool:
+        vmImage: 'ubuntu-latest'
+      steps:
+        - task: AzureKeyVault@2
+          inputs:
+            connectedServiceName: $(azureSubscription)
+            keyVaultName: $(keyVaultName)
+            secretsFilter: '*'
+          displayName: 'Fetch secrets from KeyVault'
+        - task: AzureWebApp@1
+          inputs:
+            appName: $(appServiceUat)
+            package: '$(Build.ArtifactStagingDirectory)/**/*.zip'
+            azureSubscription: $(azureSubscription)
+            deploymentMethod: 'auto'
+          displayName: 'Deploy to Azure App Service (UAT)'
 
-- stage: DeployProd
+- stage: DeployToProd
   displayName: 'Deploy to Production'
-  dependsOn: DeployUAT
+  dependsOn: DeployToUat
   condition: succeeded()
   jobs:
-  - job: DeployProdJob
-    displayName: 'Deploy to Production'
-    pool:
-      vmImage: 'ubuntu-latest'
-    steps:
-    - task: AzureWebApp@1
-      inputs:
-        azureSubscription: '<Azure Service Connection>'
-        appName: $(prodAppService)
-        package: $(System.DefaultWorkingDirectory)/**/*.zip
+    - job: DeployProd
+      displayName: 'Deploy to Production Environment'
+      pool:
+        vmImage: 'ubuntu-latest'
+      steps:
+        - task: AzureKeyVault@2
+          inputs:
+            connectedServiceName: $(azureSubscription)
+            keyVaultName: $(keyVaultName)
+            secretsFilter: '*'
+          displayName: 'Fetch secrets from KeyVault'
+        - task: AzureWebApp@1
+          inputs:
+            appName: $(appServiceProd)
+            package: '$(Build.ArtifactStagingDirectory)/**/*.zip'
+            azureSubscription: $(azureSubscription)
+            deploymentMethod: 'auto'
+          displayName: 'Deploy to Azure App Service (Production)'
+
